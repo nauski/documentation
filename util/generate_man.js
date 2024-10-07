@@ -14,12 +14,15 @@ import matter from 'gray-matter'
 import pdc from 'pdc'
 import path from 'path'
 import { VFile } from 'vfile'
-import { manFiles } from '../lib/utility.js'
+import { manFiles, manIncludes } from '../lib/utility.js'
+import remarkDeflist from 'remark-definition-list'
 import remarkMan from 'remark-man'
 import remarkParse from 'remark-parse'
-import remarkGfm from 'remark-gfm'
 import { unified } from 'unified'
+import { u } from 'unist-builder'
 import { map } from 'unist-util-map'
+import { parents } from 'unist-util-parents'
+import { SKIP, visit } from 'unist-util-visit'
 
 /* Pattern matching for markdown elements. */
 const includesRE = /<!--\s*@include:\s*(.*?)\s*-->/g
@@ -39,16 +42,56 @@ program
 	.parse()
 const debug = program.opts().debug
 
-const doInclude = (content, f) => {
-	return content.replace(includesRE, (m, m1) => {
+
+
+const doInclude = (content, includes, f) => {
+	const result = content.replace(includesRE, (m, m1) => {
 		if (!m1.length) return m
-		const inc_f = path.join(path.dirname(f), m1)
-		return doInclude(fs.readFileSync(inc_f, 'utf8'), f)
+		const inc_f = path.basename(m1)
+		for (const fn of includes) {
+			if (path.basename(fn) == inc_f)
+			   return doInclude(fs.readFileSync(fn, 'utf8'), includes, f)
+		}
+		throw new Error("Missing include " + inc_f)
 	})
+	return result
 }
 
 const processDovecotMd = () => {
 	return tree => {
+		/* Convert definition lists to base mdast elements that remark-man
+		 * can handle. */
+		visit(tree, 'defList', function (node, index, parent) {
+			if (typeof index !== 'number' || !parent) return
+			/* defList is just a container, remove it. */
+			parent.children.splice(index, 1, ...node.children)
+			return [SKIP, index]
+		})
+
+		visit(tree, 'defListTerm', function (node) {
+			node.type = "paragraph"
+		})
+
+		visit(parents(tree), 'defListDescription', function (node, index, parent) {
+			/* Convert the actual description text to a blockquote, so
+			 * that it is indented. */
+			node.node.type = "blockquote"
+
+			/* remark-man only indents blockquote if it is not at the base
+			 * level. Thus, search for a parent blockquote - if it doesn't
+			 * exist, add an additional blockquote to bump the level. */
+			while (parent) {
+				if (parent.type == 'blockquote') {
+					return
+				}
+				parent = parent.parent
+			}
+
+			node.node.children = [ u('blockquote', node.children) ]
+		})
+
+		/* Go through and replace Dovecot markdown items with man-friendly
+		 * textual equivalents. */
 		return map(tree, (node) => {
 			if (node.value) {
 				node.value = node.value.replace(includesDM, (m, m1) => {
@@ -58,14 +101,16 @@ const processDovecotMd = () => {
 					switch (parts[0]) {
 					case 'man':
 						return parts[1] + '(' + (parts[3] ? parts[3] : '1') + ')'
+					case 'plugin':
+						return parts[1] + ' plugin documentation'
 					case 'rfc':
-						return "RFC " + parts[1]
+						return 'RFC ' + parts[1]
 					case 'setting':
 						return '`' + parts[1] + '`'
 					case 'link':
 						return parts[1]
 					default:
-						return m1
+						throw new Error('unknown dovecot markdown command: ' + parts[0])
 					}
 				})
 			}
@@ -82,6 +127,7 @@ const main = async (component, outPath) => {
 
 	/* Generate list of man files. */
 	const files = (await manFiles()).flatMap((x) => fg.sync(x))
+	const includes = (await manIncludes()).flatMap((x) => fg.sync(x))
 
 	/* Get hash of last git commit. */
 	const gitHash = gitCommitInfo().shortHash
@@ -98,20 +144,20 @@ const main = async (component, outPath) => {
 		const page = matter(str)
 		const vf = new VFile({
 			path: f,
-			value: doInclude(page.content, f)
+			value: await doInclude(page.content, includes, f)
 		})
 		if (page.data.dovecotComponent != component)
 			continue
 
-		const fparts = path.basename(f).split('.')
-		const result = await unified().
+		await unified().
 			use(remarkParse).
+			use(remarkDeflist).
 			use(processDovecotMd).
-			use(remarkGfm).
 			use(remarkMan, {
 				manual: 'Dovecot',
 				version: gitHash,
-			}).process(vf).
+			}).
+			process(vf).
 			then((file) => fs.promises.writeFile(out_f, String(file)))
 	}
 }

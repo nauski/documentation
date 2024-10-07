@@ -32,6 +32,7 @@ export const settings = {
 		// tags: [],
 
 		// If setting is defined by a plugin, the plugin identifier.
+		// This can be a string or an array.
 		// plugin: '',
 
 		// The setting type. See lib/settings.js for the list of types.
@@ -1546,6 +1547,9 @@ If enabled, index mail as it is delivered or appended.`
 		plugin: 'fts',
 		seealso: [ 'fts_autoindex' ],
 		values: setting_types.STRING,
+		changed: {
+			settings_fts_autoindex_exclude_namespaces_changed: 'This setting now honors namespaces for mailbox names.'
+		},
 		text: `
 To exclude a mailbox from automatic indexing, it can be listed in this
 setting.
@@ -2555,7 +2559,11 @@ If set, allows message deliveries to exceed quota by this value.`
 		default: '0',
 		plugin: 'quota',
 		values: setting_types.UINT,
+		tags: [ 'storage_size_limits' ],
 		seealso: [ '[[link,quota_mailbox_count]]' ],
+		added: {
+			settings_quota_mailbox_count_added: false
+		},
 		text: `
 Maximum number of mailboxes that can be created. Each namespace is tracked
 separately, so e.g. shared mailboxes aren't counted towards the user's own
@@ -2568,6 +2576,10 @@ limit.
 		default: '0',
 		plugin: 'quota',
 		values: setting_types.UINT,
+		tags: [ 'storage_size_limits' ],
+		added: {
+			settings_quota_mailbox_message_count_added: false
+		},
 		text: `
 Maximum number of messages that can be created in a single mailbox.
 
@@ -2578,6 +2590,7 @@ Maximum number of messages that can be created in a single mailbox.
 		default: '0',
 		plugin: 'quota',
 		values: setting_types.UINT,
+		tags: [ 'storage_size_limits' ],
 		seealso: [ '[[link,quota_max_mail_size]]' ],
 		text: `
 The maximum message size that is allowed to be saved (e.g. by LMTP, IMAP
@@ -2882,7 +2895,6 @@ entry is to be added.`
 		default: 'no',
 		tags: [ 'auth_cache' ],
 		values: setting_types.BOOLEAN,
-		advanced: true,
 		text: `
 The auth master process by default is responsible for the hash
 verifications. Setting this to \`yes\` moves the verification to auth-worker
@@ -2931,18 +2943,24 @@ and appending an \`@domain\` element to the username in cleartext logins.`
 	auth_failure_delay: {
 		default: '2secs',
 		values: setting_types.TIME,
+		seealso: [ 'auth_internal_failure_delay' ],
 		text: `
-This is the delay before replying to failed authentication attempts.
+This is the delay before replying to failed authentication attempts. Using
+[[link,passdb_extra_field_nodelay]] bypasses this setting.
 
 This setting defines the interval for which the authentication process
 flushes all auth failures. Thus, this is the maximum interval a user may
-encounter.`
+encounter. However, there can be additional delays added by
+[[link,auth_penalty]].
+
+This setting doesn't affect internal failures. See
+[[setting,auth_internal_failure_delay]].
+`
 	},
 
 	auth_gssapi_hostname: {
 		default: '<name returned by gethostname()>',
 		values: setting_types.STRING,
-		advanced: true,
 		text: `
 This supplies the hostname to use in Generic Security Services API
 (GSSAPI) principal names.
@@ -2950,10 +2968,25 @@ This supplies the hostname to use in Generic Security Services API
 Use \`"$ALL"\` (with the quotation marks) to allow all keytab entries.`
 	},
 
+	auth_internal_failure_delay: {
+		default: '2secs',
+		values: setting_types.TIME_MSECS,
+		added: {
+			settings_auth_internal_failure_delay_added: false
+		},
+		seealso: [ 'auth_failure_delay' ],
+		text: `
+The delay before replying to client when authentication fails with
+internal failure. An additional 0..50% delay is added on top of this to
+prevent thundering herd issues.
+
+This setting is intended to prevent clients from hammering the server with
+immediate retries.`
+	},
+
 	auth_krb5_keytab: {
 		default: '<system default (e.g. /etc/krb5.keytab)>',
 		values: setting_types.STRING,
-		advanced: true,
 		text: `
 This specifies the Kerberos keytab to use for the GSSAPI mechanism.
 
@@ -3208,7 +3241,6 @@ OBJ_txt2nid() function).
 	auth_use_winbind: {
 		default: 'no',
 		values: setting_types.BOOLEAN,
-		advanced: true,
 		text: `
 By default, the NTLM mechanism is handled internally.
 
@@ -3293,7 +3325,6 @@ Available transformations:
 
 	auth_winbind_helper_path: {
 		values: setting_types.STRING,
-		advanced: true,
 		text: `
 This setting tells the system the path for Samba's ntlm_auth helper binary.
 
@@ -3484,8 +3515,10 @@ Because it grants access to users' mailboxes, it must be kept secret.`
 Value Range: \`<1-65535>\`
 
 The destination port to be used for the next doveadm proxying hop.
+This implicitly enables doing a passdb lookup for finding the proxy settings.
 
-A value of \`0\` means that proxying is not in use.`
+A value of \`0\` means that proxying is not in use. This also means no passdb
+lookup is done - only userdb lookup.`
 	},
 
 	doveadm_socket_path: {
@@ -3521,6 +3554,9 @@ If \`0\`, commands are run directly in the same process.`
 
 	dovecot_config_version: {
 		values: setting_types.STRING,
+		added: {
+			settings_dovecot_config_version_added: false
+		},
 		text: `
 Dovecot configuration version. It uses the same versioning as Dovecot in
 general, e.g. \`3.0.5\`. This must be the first setting in the
@@ -3536,6 +3572,9 @@ will be a clear failure at startup.`
 
 	dovecot_storage_version: {
 		values: setting_types.STRING,
+		added: {
+			settings_dovecot_storage_version_added: false
+		},
 		text: `
 Dovecot storage file format version. It uses the same versioning as Dovecot in
 general, e.g. \`3.0.5\`. It specifies the oldest Dovecot version
@@ -4094,12 +4133,16 @@ be enabled.
         it didn't permanently assign \`UIDVALIDITY\` to an \`EXAMINE\`d
         mailbox, but assigned it for \`SELECT\`ed mailbox.
 
+:   \`no-qresync\` [[added,imapc_features_no_qresync]]
+    :    This can be used to work around a Zimbra bug where it doesn't send
+         untagged "OK [CLOSED]" imap-resp-code when selecting a folder.
+
 :   \`zimbra-workarounds\`
     :    Fetch full message using \`BODY.PEEK[HEADER] BODY.PEEK[TEXT]\`
          instead of just \`BODY.PEEK[]\` because the header differs between
          these two when there are illegal control chars or 8bit chars.
          This mainly caused problems with dsync, but this should no longer
-        be a problem and there's probably no need to enable this workaround.`
+         be a problem and there's probably no need to enable this workaround.`
 	},
 
 	imapc_host: {
@@ -4406,9 +4449,9 @@ Options:
 		tags: [ 'lmtp' ],
 		values: setting_types.BOOLEAN,
 		text: `
-Proxy to other LMTP/SMTP servers?
-
-Proxy destination is determined via passdb lookup parameters.`
+If yes, LMTP sessions perform a passdb lookup to see if the user should be
+proxied. The user is proxied only if the \`proxy\` extra field is returned.
+The proxy destination is determined via returned passdb extra fields.`
 	},
 
 	lmtp_proxy_rawlog_dir: {
@@ -4455,7 +4498,7 @@ format), save the message to the detail mailbox.`
 
 	lmtp_user_concurrency_limit: {
 		default: 0,
-		tags: [ 'lmtp' ],
+		tags: [ 'lmtp', 'user_concurrency_limits' ],
 		values: setting_types.UINT,
 		text: `
 Limit the number of concurrent deliveries to a single user to this maximum
@@ -4577,6 +4620,9 @@ The prefix for each line written to the log file.
 
 	login_socket_path: {
 		values: setting_types.STRING,
+		added: {
+			settings_login_socket_path_added: false,
+		},
 		text: `
 Default socket path for all services' login processes. Can be overridden by
 passing a parameter to the login executable.`
@@ -5066,7 +5112,6 @@ Compliance is enforced only during attempts to create new keywords.`
 	mail_max_lock_timeout: {
 		default: '0',
 		values: setting_types.TIME,
-		advanced: true,
 		text: `
 This value is used as a timeout for tempfailing mail connections.  It
 can be set globally, for application to all Dovecot services, but
@@ -5079,6 +5124,7 @@ tolerate tempfailing less well.`
 	mail_max_userip_connections: {
 		default: '10',
 		values: setting_types.UINT,
+		tags: [ 'user_concurrency_limits' ],
 		text: `
 The maximum number of IMAP connections allowed for a user from each IP
 address.
@@ -6579,8 +6625,8 @@ The path to the Diffie-Hellman parameters file must be provided. This
 setting isn't needed if using only ECDSA certificates.
 
 You can generate a new parameters file by, for example, running
-\`openssl gendh 4096\` on a machine with sufficient entropy (this may take
-some time).
+\`openssl dhparam -out dh.pem 4096\` on a machine with sufficient entropy
+(this may take some time).
 
 Example:
 
@@ -6731,6 +6777,9 @@ The settings [[setting,state_dir,/home/foo/dovecot/state]] and
 	submission_add_received_header: {
 		default: 'yes',
 		tags: [ 'submission' ],
+		added: {
+			settings_submission_add_received_header_added: false
+		},
 		values: setting_types.BOOLEAN,
 		text: `
 Controls if "Received:" header should be added to mails by the submission
@@ -6930,9 +6979,21 @@ User name for authentication to the relay MTA if authentication is required.`
 	submission_ssl: {
 		default: 'no',
 		seealso: [ 'submission_host' ],
-		values: setting_types.BOOLEAN,
+		values: setting_types.STRING,
+		values_enum: [ 'no', 'smtps', 'starttls' ],
 		text: `
-If enabled, use SSL/TLS to connect to [[setting,submission_host]].`
+If enabled, use SSL/TLS to connect to [[setting,submission_host]].
+
+Available values:
+
+\`no\`
+:   No SSL connection is used.
+
+\`smtps\`
+:   An SMTPS connection (immediate SSL) is used.
+
+\`starttls\`
+:   The STARTTLS command is used to establish the TLS layer.`
 	},
 
 	submission_timeout: {

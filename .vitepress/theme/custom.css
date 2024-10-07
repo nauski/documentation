@@ -1,5 +1,6 @@
 :root {
   --vp-sidebar-width: 304px;
+  --dovecot-logo-roof: #54bbab;
 }
 
 :root:not(.dark) .dark-only {

@@ -9,6 +9,9 @@ dovecotlinks:
   passdb_extra_fields:
     hash: extra-fields
     text: passdb extra fields
+  passdb_extra_field_nodelay:
+    hash: nodelay
+    text: passdb nodelay extra field
   passdb_user_extra_field:
     hash: user-extra-field
     text: passdb user extra field
@@ -498,6 +501,15 @@ assume that the password was given wrong, so it might not be a good idea to use
 this unless the system will be down for days and you don't have a better way to
 notify the users.
 
+::: warning
+The `nologin` field is mainly intended for user logins (IMAP, POP3,
+ManageSieve). It is ignored with `doveadm`, because the intention is that admin
+could still be able to access a disabled user via `doveadm`.
+
+[[changed,lmtp_nologin_added]] The `nologin` field prevents LMTP access now
+as long as [[setting,lmtp_proxy,yes]]. However, the `reason` field is ignored.
+:::
+
 ::: info Note
 If you want to entirely block the user from logging in (i.e. account is
 suspended), with no IMAP referral information provided, you must ensure that
@@ -508,11 +520,14 @@ The order of preference is: `proxy`, `host`, then `nologin`.
 
 #### `nodelay`
 
-Don't delay reply to client in case of an authentication failure.
+Don't delay reply to client in case of an authentication failure. However, this
+doesn't affect internal failure delays
+([[setting,auth_internal_failure_delay]]).
 
-If the authentication fails, Dovecot typically waits 0-2 seconds before
-sending back the "authentication failed" reply. If this field is set, no
-such delay is done.
+If the authentication fails, Dovecot typically waits 0-2 seconds
+([[setting,auth_failure_delay]]) before sending back the "authentication
+failed" reply. If this field is set, no such delay is done. Additionally,
+[[link,auth_penalty]] won't be increased.
 
 Commonly used with [[link,authentication_proxies]] and [[link,auth_referral]],
 but may also be used standalone.

@@ -5,7 +5,6 @@ import { pagefindPlugin } from 'vitepress-plugin-pagefind'
 import { generateSidebar } from 'vitepress-sidebar'
 import { dovecotMdExtend, initDovecotMd } from '../lib/markdown.js'
 import { frontmatterIter } from '../lib/utility.js'
-import { checkExternalLinks, outputBrokenLinks } from '../lib/link_checker.js'
 
 const base = '/2.4'
 
@@ -46,15 +45,19 @@ export default defineConfig({
 	},
 
 	ignoreDeadLinks: 'localhostLinks',
+	metaChunk: true,
 
 	themeConfig: {
 		nav: [
 			{
-				text: '2.4',
+				text: base.substring(1),
 				items: [
-					{ text: '3.0 (Pro)', link: 'https://doc.dovecotpro.com/3.0/' },
-					{ text: '2.3', link: 'https://doc.dovecot.org/' },
+					{ text: '2.3', link: 'https://doc.dovecot.org/2.3/' },
 				]
+			},
+			{
+				text: '3.0 (Pro)',
+				link: 'https://doc.dovecotpro.com/latest/'
 			},
 			{
 				text: 'Dovecot Home',
@@ -90,7 +93,10 @@ export default defineConfig({
 			copyright: 'Copyright © Open-Xchange GmbH',
 		},
 
-		logo: '/dovecot_logo.png',
+		logo: {
+			light: '/dovecot_logo-light.svg',
+			dark: '/dovecot_logo-dark.svg',
+		},
 
 		editLink: {
 			pattern: 'https://github.com/dovecot/documentation/edit/main/docs/:path'
@@ -116,15 +122,8 @@ export default defineConfig({
 	},
 
 	head: [
-		['link', { rel: 'icon', type: 'image/x-icon', href: base + '/favicon.ico' } ]
-	],
-
-	async transformHead(context) {
-		checkExternalLinks(context)
-	},
-
-	async buildEnd(siteConfig) {
-		outputBrokenLinks()
-	}
+		['link', { rel: 'icon', type: 'image/x-icon', href: base + '/favicon.ico' } ],
+		['script', { async: '', src: '/js/versions.js' } ]
+	]
 
 })

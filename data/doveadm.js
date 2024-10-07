@@ -131,6 +131,7 @@ Applicable to [[link,mdbox]] and [[link,sdbox]] mailbox formats only.
 	'acl get': {
 		args: {
 			'match-me': {
+				cli: 'm',
 				type: doveadm_arg_types.BOOL,
 			},
 			mailbox: {
@@ -1564,11 +1565,13 @@ to secure it.
 		args: {
 			type: {
 				cli: 't',
-				type: doveadm_arg_types.STRING
+				type: doveadm_arg_types.STRING,
+				text: `Mailbox path type.`
 			},
 			mailbox: {
 				positional: true,
-				type: doveadm_arg_types.ARRAY
+				type: doveadm_arg_types.ARRAY,
+				text: `Mailbox name to query.`
 			},
 		},
 		flags: doveadm_flag_types.USER | doveadm_flag_types.USERFILE,

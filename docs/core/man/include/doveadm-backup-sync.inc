@@ -17,15 +17,16 @@ protocol, which allows using dsync for mailbox migration purposes.
 You can run dsync in one of three modes:
 
 - **doveadm backup** performs one-way synchronization. If there are
-  any changes in the destination they will be deleted, so the
+  any changes in the destination they will be reverted, so the
   destination will look exactly like the source.
 
 - **doveadm sync** performs two-way synchronization. It merges all
   changes without losing anything. Both the mailboxes will end up
   looking identical after the synchronization is finished.
 
-- **doveadm sync -1** performs one-way synchronization, but it
-  merges the changes in destination without deleting anything. This
+- **doveadm sync -1** performs one-way synchronization. If there are
+  any changes in the destination, they will be preserved and the new
+  changes will be merged on top of them. This merging
   doesn't currently work perfectly, so its use should be limited.
   Its main purpose is that during mailbox migration you can run
   **doveadm backup** multiple times, then switch mails to be
@@ -102,13 +103,13 @@ server processes to be running, except when using -u parameter to do a
 dsync can sync either one or multiple users using the -u or -A
 parameters.
 
-<!-- @include: include/global-options.inc -->
+<!-- @include: ./global-options.inc -->
 
 ## OPTIONS
 
-<!-- @include: include/option-A.inc -->
+<!-- @include: ./option-A.inc -->
 
-<!-- @include: include/option-F-file.inc -->
+<!-- @include: ./option-F-file.inc -->
 
 **-1**
 :   Do one-way synchronization instead of two-way synchronization.
@@ -120,7 +121,7 @@ parameters.
 :   Synchronize all the available namespaces. By default only namespaces
     that don't have explicit location setting are synchronized.
 
-<!-- @include: include/option-no-userdb-lookup.inc -->
+<!-- @include: ./option-no-userdb-lookup.inc -->
 
 **-P**
 :   Run a [[man,doveadm-purge]] for the destination (remote) storage
@@ -131,7 +132,7 @@ parameters.
     system to the destination (remote). This option reverses the flow,
     and will instead pull messages from the remote to the local storage.
 
-<!-- @include: include/option-S-socket.inc -->
+<!-- @include: ./option-S-socket.inc -->
 
 **-T** *secs*
 :   Specify the time in seconds, how long [[man,doveadm]] should wait
@@ -184,7 +185,7 @@ parameters.
 :   Use stateful synchronization. If the previous state is unknown, use
     an empty string. The new state is always printed to standard output.
 
-<!-- @include: include/option-u-user.inc -->
+<!-- @include: ./option-u-user.inc -->
 
 **-x** *mailbox_mask*
 :   Exclude the specified mailbox name/mask. The mask may contain "**?**"
@@ -302,7 +303,7 @@ Once all users have been converted, you can set the default
 *mail_location* to mdbox and remove the per-user mail locations from
 *userdb*.
 
-<!-- @include: include/reporting-bugs.inc -->
+<!-- @include: ./reporting-bugs.inc -->
 
 ## SEE ALSO
 

@@ -265,7 +265,8 @@ Most useful for debugging authentication flow.`
 		root: 'auth',
 		inherit: [ 'auth_server_common', 'auth_server_userdb' ],
 		text: `
-Processing has begun for a userdb block.
+Processing has begun for a userdb block. This event is also sent for userdb
+iterations.
 
 Most useful for debugging authentication flow.`
 	},
@@ -283,7 +284,8 @@ Most useful for debugging authentication flow.`
 * \`hit\`: Found from cache`,
 		},
 		text: `
-Processing has ended for a userdb block.
+Processing has ended for a userdb block. This event is also sent for userdb
+iterations.
 
 Most useful for debugging authentication flow.`
 	},
@@ -338,13 +340,13 @@ Most useful for debugging authentication flow.`
 		fields: {
 			net_in_bytes: {
 				changed: {
-					events_net_in_bytes_changed: false
+					events_net_in_bytes_changed: `This was previously \`in_bytes\`.`
 				},
 				text: `Amount of data read, in bytes.`
 			},
 			net_out_bytes: {
 				changed: {
-					events_net_out_bytes_changed: false
+					events_net_out_bytes_changed: `This was previously \`out_bytes\`.`
 				},
 				text: `Amount of data written, in bytes.`
 			},
@@ -403,13 +405,13 @@ Currently it is not possible to know which one happened.
 			syscw: `Number of write syscalls. (Skipped in non-Linux environments.)`,
 			net_in_bytes: {
 				added: {
-					events_net_in_bytes_changed: false
+					events_net_in_bytes_changed: `This was previously \`in_bytes\`.`
 				},
 				text: `Bytes received during this session (for applicable processes.)`
 			},
 			net_out_bytes: {
 				added: {
-					events_net_out_bytes_changed: false
+					events_net_out_bytes_changed: `This was previously \`out_bytes\`.`
 				},
 				text: `Bytes sent during this session (for applicable processes.)`
 			},
@@ -516,11 +518,15 @@ Reason why the caching decision changed:
 * \`unordered_access\`: temp -&gt; yes decision change, because mails weren't accessed in ascending order.
 * Other values indicate a reason for cache purging, which changes the caching decision yes -&gt; temp.`,
 			uid: `IMAP UID number that caused the decision change. This is set only for some reasons, not all.`,
-			old_decision: `Old cache decision: \`no\`, \`temp\`, or \`yes\`.`,
-			new_decision: `New cache decision: \`no\`, \`temp\`, or \`yes\`.`,
+			old_decision: `Old <a href="#mail_cache_decision_changed_decisions">cache decision</a>.`,
+			new_decision: `New <a href="#mail_cache_decision_changed_decisions">cache decision</a>.`,
 		},
 		text: `
-A field's caching decision changed. The decisions are:
+A field's caching decision changed.
+
+<span id="mail_cache_decision_changed_decisions" />
+
+Decisions:
 
 | Decision | Description |
 | -------- | ----------- |
@@ -643,13 +649,13 @@ payload) are parsed.`
 		fields: {
 			net_in_bytes: {
 				changed: {
-					events_net_in_bytes_changed: false
+					events_net_in_bytes_changed: `This was previously \`in_bytes\`.`
 				},
 				text: `Amount of request data read, in bytes.`
 			},
 			net_out_bytes: {
 				changed: {
-					events_net_out_bytes_changed: false
+					events_net_out_bytes_changed: `This was previously \`out_bytes\`.`
 				},
 				text: `Amount of response data written, in bytes.`
 			},
@@ -760,13 +766,13 @@ Values:
 			lock_wait_usecs: `How many usecs this command has spent waiting for locks.`,
 			net_in_bytes: {
 				changed: {
-					events_net_in_bytes_changed: false
+					events_net_in_bytes_changed: `This was previously \`in_bytes\`.`
 				},
 				text: `Amount of data read for this command, in bytes.`
 			},
 			net_out_bytes: {
 				changed: {
-					events_net_out_bytes_changed: false
+					events_net_out_bytes_changed: `This was previously \`out_bytes\`.`
 				},
 				text: `Amount of data written for this command, in bytes.`
 			},
@@ -1203,14 +1209,16 @@ compiling it at delivery).`
 		},
 		inherit: 'pre_login_client',
 		fields: {
-			reason: `Short reason; see the short to long reason mapping in the table below.`,
+			reason: `Short reason; see the <a href="#pre_login_client_reason_values">short reason to description mapping</a>.`,
 			auth_successes: `Number of successful authentications, which eventually failed due to other reasons.`,
 			auth_attempts: `Total number of authentication attempts, both successful and failed.`,
 			auth_usecs: `How long ago the first authentication attempt was started.`,
 			connected_usecs: `How long ago the client connection was created.`,
 		},
 		text: `
-Error Codes:
+<span id="pre_login_client_reason_values" />
+
+\`reason\` values:
 
 | Reason | Description |
 | ------ | ----------- |
@@ -1226,6 +1234,7 @@ Error Codes:
 | \`client_ssl_cert_untrusted\` | Client sent an SSL certificate that is untrusted with [[setting,auth_ssl_require_client_cert,yes]]. |
 | \`client_ssl_cert_missing\` | Client didn't send SSL certificate, but [[setting,auth_ssl_require_client_cert,yes]]. |
 | \`client_ssl_not_started\` | Client didn't even start SSL with [[setting,auth_ssl_require_client_cert,yes]]. |
+| \`connection_limit\` | Client reached [[setting,mail_max_userip_connections]] limit. |
 | \`internal_failure\` | Internal failure. The error log has more details. |
 | \`invalid_base64\` | Client sent invalid base64 in SASL response. |
 | \`invalid_mech\` | Unknown SASL authentication mechanism requested. |
@@ -1237,7 +1246,7 @@ Error Codes:
 | \`tls_handshake_not_finished\` | TLS handshake failed or was not finished. |
 | \`user_disabled\` | User is in deny passdb, or in some other way disabled passdb. |
 
-Proxying error codes:
+Proxying \`reason\` values:
 
 | Reason | Description |
 | ------ | ----------- |
@@ -1270,30 +1279,37 @@ logged into the backend.`
 		inherit: 'login_proxy_session',
 		fields: {
 			error: `If login to destination failed, contains the error.`,
-			error_code: `If login to destination failed, contains the error code.`,
+			error_code: {
+				added: {
+					events_proxy_session_finished_error_code_added: false
+				},
+				text: `If login to destination failed, contains the <a href="#proxy_session_finished_error_code">error code</a>.`,
+			},
 			disconnect_side: `Which side disconnected: \`client\`, \`server\`, \`proxy\`.`,
 			disconnect_reason: `Reason for disconnection (empty = clean disconnect).`,
 			idle_usecs: {
 				changed: {
-					events_proxy_session_finished_idle_usecs_changed: `This was previously named idle_secs.`
+					events_proxy_session_finished_idle_usecs_changed: `This was previously named \`idle_secs\`.`
 				},
 				text: `Number of seconds the connection was idling before getting disconnected.`
 			},
 			net_in_bytes: {
 				changed: {
-					events_net_in_bytes_changed: false
+					events_net_in_bytes_changed: `This was previously \`in_bytes\`.`
 				},
 				text: `Amount of data read from client, in bytes.`
 			},
 			net_out_bytes: {
 				changed: {
-					events_net_out_bytes_changed: false
+					events_net_out_bytes_changed: `This was previously \`out_bytes\`.`
 				},
 				text: `Amount of data written to client, in bytes.`
 			},
 		},
 		text: `
 Connection to proxy destination has ended, either successfully or with error.
+
+<span id="proxy_session_finished_error_code" />
 
 List of error codes:
 
@@ -1521,13 +1537,13 @@ Reason string for purging the cache file:
 			attempts: `Amount of individual HTTP request attempts (number of retries after failures + 1).`,
 			net_in_bytes: {
 				changed: {
-					events_net_in_bytes_changed: false
+					events_net_in_bytes_changed: `This was previously \`in_bytes\`.`
 				},
 				text: `Amount of data read, in bytes.`
 			},
 			net_out_bytes: {
 				changed: {
-					events_net_out_bytes_changed: false
+					events_net_out_bytes_changed: `This was previously \`out_bytes\`.`
 				},
 				text: `Amount of data written, in bytes.`
 			},
